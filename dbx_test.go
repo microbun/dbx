@@ -19,7 +19,7 @@ func Test_open(t *testing.T) {
 func TestDB_Exec_Insert(t *testing.T) {
 	db, err := Open("sqlite3", "file:locked.sqlite")
 	if err != nil {
-		t.Fatalf("open rawDB:%v", err)
+		t.Fatalf("open db err:%v", err)
 	}
 	rs, err := db.SQLExec("insert into accounts(nickname) values(?)", "OKHome")
 	if err != nil {
@@ -194,11 +194,10 @@ func ExampleOpen() {
 
 type Account struct {
 	Record
-	ID        int            `column:"id" `
+	ID        int            `dbx:"column:id" `
 	NickName  sql.NullString `dbx:"column:nickname" `
 	Status    int            `dbx:"column:status" `
 	CreatedBy sql.NullString `dbx:"column:created_by"`
-	//Uid       sql.NullInt64  `dbx:"column:uid"`
 	Avatar    sql.NullString `dbx:"column:avatar"`
 	NetworkID sql.NullInt64  `dbx:"column:network_id"`
 }
