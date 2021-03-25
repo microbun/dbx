@@ -49,6 +49,6 @@ var nameArr []string
 err = db.SQLFind(&nameArr, "select name from accounts")
 
 var accountSingle = Account{}
-err = db.SQLFirst(&accountSingle, "select * from accounts where id = 33")
+err = db.SQLFirst(&accountSingle, "select * from accounts where id = ?", 33)
 
 ```
