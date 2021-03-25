@@ -32,6 +32,10 @@ type Account struct {
     Avatar    sql.NullString `dbx:"column:avatar"`
 }
 
+func (a Account) TableName() string {
+    return "accounts"
+}
+
 _, err = db.StructInsert(&Account{
     NickName: "jack",
     Avatar: sql.NullString{},
