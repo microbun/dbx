@@ -5,20 +5,20 @@ import (
 )
 
 type Tx struct {
-	*ComplexExec
-	rawTx *sql.Tx
+	*executor
+	tx *sql.Tx
 }
 
 func newTx(tx *sql.Tx, option *Options) *Tx {
-	return &Tx{newComplexExec(tx, option), tx}
+	return &Tx{executor: newDefaultExecutor(tx, option), tx: tx}
 }
 
 //Commit the transaction
 func (t *Tx) Commit() error {
-	return t.rawTx.Commit()
+	return t.tx.Commit()
 }
 
 //Rollback the transaction
 func (t *Tx) Rollback() error {
-	return t.rawTx.Rollback()
+	return t.tx.Rollback()
 }

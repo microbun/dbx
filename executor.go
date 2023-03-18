@@ -3,89 +3,144 @@ package dbx
 import (
 	"context"
 	"database/sql"
-	"fmt"
+	"errors"
 )
 
-type DQLExecutor interface {
-	DQLExecContext(ctx context.Context, query string, argument DQLArgument) (sql.Result, error)
+var _ Executor = &executor{}
 
-	//DQLExec executes a query without returning any rows.
-	DQLExec(query string, argument DQLArgument) (sql.Result, error)
+type Executor interface {
+	// NamedExecContext executes a Named query without returning any rows.
+	// The arg are for any placeholder parameters in the query.
+	NamedExecContext(ctx context.Context, query string, arg map[string]interface{}) (sql.Result, error)
 
-	DQLMustExecContext(ctx context.Context, query string, argument DQLArgument) sql.Result
-	DQLMustExec(query string, argument DQLArgument) sql.Result
+	// NamedExec executes a Named query without returning any rows.
+	// The arg are for any placeholder parameters in the query.
+	NamedExec(query string, arg map[string]interface{}) (sql.Result, error)
 
-	DQLFirstContext(ctx context.Context, dest interface{}, query string, argument DQLArgument) error
-	DQLFirst(dest interface{}, query string, argument DQLArgument) error
-	DQLMustFirstContext(ctx context.Context, dest interface{}, query string, argument DQLArgument)
-	DQLMustFirst(dest interface{}, query string, argument DQLArgument)
+	// MustNamedExec is the same as  NamedExec but panics if cannot insert.
+	MustNamedExec(query string, arg map[string]interface{}) sql.Result
 
-	DQLFindContext(ctx context.Context, dest interface{}, query string, argument DQLArgument) error
-	DQLFind(dest interface{}, query string, argument DQLArgument) error
-	DQLMustFindContext(ctx context.Context, dest interface{}, query string, argument DQLArgument)
-	DQLMustFind(dest interface{}, query string, argument DQLArgument)
-}
+	// NamedGetContext execute the Named query and scan the first row to dest, dest must be a pointer.
+	// if dest is a type supported by the database (string , int, []byte, time.Time, etc.)
+	// and there is only one column, the row will be assigned to dest.
+	// if dest is a struct, it will be mapped to the dbx tag field in the struct according to the name of each column.
+	// A sql.ErrNoRows is returned if the result set is empty.
+	NamedGetContext(ctx context.Context, dest interface{}, query string, arg map[string]interface{}) error
 
-type SQLExecutor interface {
-	SQLPrepareContext(ctx context.Context, query string) (*SQLStmt, error)
+	// NamedGet execute the Named query and scan the first row to dest, dest must be a pointer.
+	// if dest is a type supported by the database (string , int, []byte, time.Time, etc.)
+	// and there is only one column, the row will be assigned to dest.
+	// if dest is a struct, it will be mapped to the dbx tag field in the struct according to the name of each column.
+	// A sql.ErrNoRows is returned if the result set is empty.
+	NamedGet(dest interface{}, query string, arg map[string]interface{}) error
 
-	SQLPrepare(query string) (*SQLStmt, error)
-	// SQLExecContext executes a query without returning any rows.
+	// MustNamedGet is the same as NamedGet, if there is a error in query, it will panics,
+	// but sql.ErrNoRows will return false
+	MustNamedGet(dest interface{}, query string, arg map[string]interface{}) bool
+
+	// NamedQueryContext execute the query and scan the rows to dest, dest must be a slice of pointer.
+	// if dest is a type supported by the database ([]string , []int, []byte, []time.Time, etc.)
+	// and there is only one column, the rows will be assigned to dest.
+	// if dest is a struct, it will be mapped to the dbx tag field in the struct according to the name of each column.
+	NamedQueryContext(ctx context.Context, dest interface{}, query string, arg map[string]interface{}) error
+
+	// NamedQuery execute the query and scan the rows to dest, dest must be a slice of pointer.
+	// if dest is a type supported by the database ([]string , []int, []byte, []time.Time, etc.)
+	// and there is only one column, the rows will be assigned to dest.
+	// if dest is a struct, it will be mapped to the dbx tag field in the struct according to the name of each column.
+	NamedQuery(dest interface{}, query string, arg map[string]interface{}) error
+
+	// MustNamedQuery like NamedQuery but panics if cannot query.
+	MustNamedQuery(dest interface{}, query string, arg map[string]interface{})
+
+	// PrepareContext creates a prepared statement
+	PrepareContext(ctx context.Context, query string) (*Stmt, error)
+
+	// Prepare creates a prepared statement
+	Prepare(query string) (*Stmt, error)
+
+	// ExecContext executes a query without returning any rows.
 	// The args are for any placeholder parameters in the query.
-	SQLExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
+	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
 
-	// SQLExec executes a query without returning any rows.
+	// Exec executes a query without returning any rows.
 	// The args are for any placeholder parameters in the query.
-	SQLExec(query string, args ...interface{}) (sql.Result, error)
+	Exec(query string, args ...interface{}) (sql.Result, error)
 
-	SQLMustExecContext(ctx context.Context, query string, args ...interface{}) sql.Result
-	SQLMustExec(query string, args ...interface{}) sql.Result
+	// MustExec is the same as  Exec but panics if cannot insert.
+	MustExec(query string, args ...interface{}) sql.Result
 
-	SQLFirstContext(ctx context.Context, dest interface{}, query string, args ...interface{}) (err error)
-	SQLFirst(dest interface{}, query string, args ...interface{}) (err error)
-	SQLMustFirstContext(ctx context.Context, dest interface{}, query string, args ...interface{})
-	SQLMustFirst(dest interface{}, query string, args ...interface{})
+	// GetContext execute the query and scan the first row to dest, dest must be a pointer.
+	// if dest is a type supported by the database (string , int, []byte, time.Time, etc.)
+	// and there is only one column, the row will be assigned to dest.
+	// if dest is a struct, it will be mapped to the dbx tag field in the struct according to the name of each column.
+	// A sql.ErrNoRows is returned if the result set is empty.
+	GetContext(ctx context.Context, dest interface{}, query string, args ...interface{}) (err error)
 
-	SQLFindContext(ctx context.Context, dest interface{}, query string, args ...interface{}) (err error)
-	SQLFind(dest interface{}, query string, args ...interface{}) (err error)
-	SQLMustFindContext(ctx context.Context, dest interface{}, query string, args ...interface{})
-	SQLMustFind(dest interface{}, query string, args ...interface{})
+	// Get execute the query and scan the first row to dest, dest must be a pointer.
+	// If dest is a type supported by the database (string , int, []byte, time.Time, etc.)
+	// and there is only one column, the row will be assigned to dest.
+	// If dest is a struct, it will be mapped to the dbx tag field in the struct according to the name of each column.
+	// A sql.ErrNoRows is returned, if the query selects no rows.
+	Get(dest interface{}, query string, args ...interface{}) (err error)
+
+	// MustGet is the same as Get, if there is a error in query, it will panics,
+	// but sql.ErrNoRows will return false
+	MustGet(dest interface{}, query string, args ...interface{}) bool
+
+	// QueryContext execute the query and scan the rows to dest, dest must be a slice of pointer.
+	// if dest is a type supported by the database ([]string , []int, []byte, []time.Time, etc.)
+	// and there is only one column, the rows will be assigned to dest.
+	// if dest is a struct, it will be mapped to the dbx tag field in the struct according to the name of each column.
+	QueryContext(ctx context.Context, dest interface{}, query string, args ...interface{}) (err error)
+
+	// Query execute the query and scan the rows to dest, dest must be a slice of pointer.
+	// if dest is a type supported by the database ([]string , []int, []byte, []time.Time, etc.)
+	// and there is only one column, the rows will be assigned to dest.
+	// if dest is a struct, it will be mapped to the dbx tag field in the struct according to the name of each column.
+	Query(dest interface{}, query string, args ...interface{}) (err error)
+
+	// MustQuery is the same as Query but panics if cannot query.
+	MustQuery(dest interface{}, query string, args ...interface{})
+
+	// InsertContext insert a struct to database
+	InsertContext(ctx context.Context, value interface{}) (rs sql.Result, err error)
+
+	// Insert a struct to database
+	Insert(value interface{}) (sql.Result, error)
+
+	// MustInsert is the same as Insert but panics if cannot insert.
+	MustInsert(value interface{}) sql.Result
+
+	// UpdateContext update the rows according to the value of structure, if the column name is specified,
+	// only the specified column is updated.
+	UpdateContext(ctx context.Context, value interface{}, columns ...string) (rs sql.Result, err error)
+
+	// Update the rows according to the value of structure, if the column name is specified,
+	// only the specified column is updated.
+	Update(value interface{}, columns ...string) (sql.Result, error)
+
+	// MustUpdate is the same as Update, but panics if cannot update.
+	MustUpdate(value interface{}, columns ...string) (rs sql.Result)
 }
 
-type StructExecutor interface {
-	StructInsertContext(ctx context.Context, value interface{}) (rs sql.Result, err error)
-	StructMustInsertContext(ctx context.Context, value interface{}) (rs sql.Result)
-	StructInsert(value interface{}) (sql.Result, error)
-	StructMustInsert(value interface{}) sql.Result
-	StructUpdateContext(ctx context.Context, value interface{}) (rs sql.Result, err error)
-	StructUpdate(value interface{}) (sql.Result, error)
-	StructMustUpdateContext(ctx context.Context, value interface{}) (rs sql.Result)
-	StructMustUpdate(value interface{}) (rs sql.Result)
-}
-
-type ComplexExecutor interface {
-	StructExecutor
-	SQLExecutor
-	DQLExecutor
-}
-
-// ComplexExec implemented SQLExecutor, DQLExecutor and StructExecutor
-type ComplexExec struct {
+// executor implemented SQLExecutor, NamedExecutor and StructExecutor
+type executor struct {
 	option   *Options
 	preparer preparer
 }
 
-func newComplexExec(preparer preparer, option *Options) *ComplexExec {
-	return &ComplexExec{preparer: preparer, option: option}
+func newDefaultExecutor(preparer preparer, option *Options) *executor {
+	return &executor{preparer: preparer, option: option}
 }
 
-//StructInsertContext
-func (e *ComplexExec) StructInsertContext(ctx context.Context, value interface{}) (rs sql.Result, err error) {
-	atv, query, values, err := e.option.generator.InsertSQL(value)
+// InsertContext insert a struct to database
+func (e *executor) InsertContext(ctx context.Context, value interface{}) (rs sql.Result, err error) {
+	atv, query, values, err := e.option.Generator.InsertSQL(value)
 	if err != nil {
 		return
 	}
-	rs, err = e.SQLExecContext(ctx, query, values...)
+	rs, err = e.ExecContext(ctx, query, values...)
 	if err != nil {
 		return rs, err
 	}
@@ -99,235 +154,238 @@ func (e *ComplexExec) StructInsertContext(ctx context.Context, value interface{}
 	return
 }
 
-//StructMustInsertContext
-func (e *ComplexExec) StructMustInsertContext(ctx context.Context, value interface{}) (rs sql.Result) {
-	rs, err := e.StructInsertContext(ctx, value)
+// Insert a struct to database
+func (e *executor) Insert(value interface{}) (sql.Result, error) {
+	return e.InsertContext(context.Background(), value)
+}
+
+// MustInsert is the same as Insert but panics if cannot insert.
+func (e *executor) MustInsert(value interface{}) sql.Result {
+	rs, err := e.InsertContext(context.Background(), value)
 	if err != nil {
 		panic(err)
 	}
-	return
+	return rs
 }
 
-// StructInsert insert a struct to database
-func (e *ComplexExec) StructInsert(value interface{}) (sql.Result, error) {
-	return e.StructInsertContext(context.Background(), value)
-}
-
-// StructMustInsert is like StructInsert but panics if cannot insert.
-func (e *ComplexExec) StructMustInsert(value interface{}) sql.Result {
-	return e.StructMustInsertContext(context.Background(), value)
-}
-
-//StructUpdateContext
-func (e *ComplexExec) StructUpdateContext(ctx context.Context, value interface{}) (rs sql.Result, err error) {
-	query, values, err := e.option.generator.UpdateSQL(value)
+// UpdateContext update the rows according to the value of structure, if the column name is specified,
+// only the specified column is updated.
+func (e *executor) UpdateContext(ctx context.Context, value interface{}, columns ...string) (rs sql.Result, err error) {
+	query, values, err := e.option.Generator.UpdateSQL(value, columns...)
 	if err != nil {
 		return
 	}
-	return e.SQLExecContext(ctx, query, values...)
+	return e.ExecContext(ctx, query, values...)
 }
 
-//StructUpdate
-func (e *ComplexExec) StructUpdate(value interface{}) (sql.Result, error) {
-	return e.StructUpdateContext(context.Background(), value)
+// Update the rows according to the value of structure, if the column name is specified,
+// only the specified column is updated.
+func (e *executor) Update(value interface{}, columns ...string) (sql.Result, error) {
+	return e.UpdateContext(context.Background(), value, columns...)
 }
 
-//StructMustUpdateContext
-func (e *ComplexExec) StructMustUpdateContext(ctx context.Context, value interface{}) (rs sql.Result) {
-	rs, err := e.StructUpdateContext(ctx, value)
+// MustUpdate is the same as Update, but panics if cannot update.
+func (e *executor) MustUpdate(value interface{}, columns ...string) (rs sql.Result) {
+	rs, err := e.UpdateContext(context.Background(), value, columns...)
 	if err != nil {
 		panic(err)
 	}
 	return
 }
 
-//StructMustUpdate
-func (e *ComplexExec) StructMustUpdate(value interface{}) (rs sql.Result) {
-	return e.StructMustUpdateContext(context.Background(), value)
-}
-
-//SQL Executor
-func (e *ComplexExec) SQLPrepare(query string) (*SQLStmt, error) {
+// Prepare creates a prepared statement
+func (e *executor) Prepare(query string) (*Stmt, error) {
 	return newStmt(e.preparer, query, e.option)
 }
 
-//SQLPrepareContext
-func (e *ComplexExec) SQLPrepareContext(ctx context.Context, query string) (*SQLStmt, error) {
+// PrepareContext creates a prepared statement
+func (e *executor) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 	return newStmtContext(ctx, e.preparer, query, e.option)
 }
 
-//SQLFirstContext
-func (e *ComplexExec) SQLFirstContext(ctx context.Context, dest interface{}, query string, args ...interface{}) (err error) {
-	stmt, err := e.SQLPrepareContext(ctx, query)
+// GetContext execute the query and scan the first row to dest, dest must be a pointer.
+// if dest is a type supported by the database (string , int, []byte, time.Time, etc.)
+// and there is only one column, the row will be assigned to dest.
+// if dest is a struct, it will be mapped to the dbx tag field in the struct according to the name of each column.
+// An sql.ErrNoRows is returned if the result set is empty.
+func (e *executor) GetContext(ctx context.Context, dest interface{}, query string, args ...interface{}) (err error) {
+	stmt, err := e.PrepareContext(ctx, query)
 	if err != nil {
 		return
 	}
 	defer func() {
-		err := stmt.Close()
-		if err != nil {
-			fmt.Printf("close stmt err:%v", err)
-		}
+		_ = stmt.Close()
 	}()
-	return stmt.FirstContext(ctx, dest, args...)
+	return stmt.GetContext(ctx, dest, args...)
 }
 
-//SQLFirst
-func (e *ComplexExec) SQLFirst(dest interface{}, query string, args ...interface{}) (err error) {
-	return e.SQLFirstContext(context.Background(), dest, query, args...)
+// Get execute the query and scan the first row to dest, dest must be a pointer.
+// if dest is a type supported by the database (string , int, []byte, time.Time, etc.)
+// and there is only one column, the row will be assigned to dest.
+// if dest is a struct, it will be mapped to the dbx tag field in the struct according to the name of each column.
+// An sql.ErrNoRows is returned if the result set is empty.
+func (e *executor) Get(dest interface{}, query string, args ...interface{}) (err error) {
+	return e.GetContext(context.Background(), dest, query, args...)
 }
 
-//SQLMustFirstContext
-func (e *ComplexExec) SQLMustFirstContext(ctx context.Context, dest interface{}, query string, args ...interface{}) {
-	err := e.SQLFirstContext(ctx, dest, query, args...)
+// MustGet is the same as Get, if there is a error in query, it will panics,
+// but sql.ErrNoRows will return false
+func (e *executor) MustGet(dest interface{}, query string, args ...interface{}) bool {
+	err := e.GetContext(context.Background(), dest, query, args...)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false
+		}
+		panic(err)
+	}
+	return true
+}
+
+// QueryContext execute the query and scan the rows to dest, dest must be a slice of pointer.
+// if dest is a type supported by the database ([]string , []int, []byte, []time.Time, etc.)
+// and there is only one column, the rows will be assigned to dest.
+// if dest is a struct, it will be mapped to the dbx tag field in the struct according to the name of each column.
+func (e *executor) QueryContext(ctx context.Context, dest interface{}, query string, args ...interface{}) (err error) {
+	stmt, err := e.PrepareContext(ctx, query)
+	if err != nil {
+		return
+	}
+	defer func() {
+		_ = stmt.Close()
+	}()
+	return stmt.QueryContext(ctx, dest, args...)
+}
+
+// Query execute the query and scan the rows to dest, dest must be a slice of pointer.
+// if dest is a type supported by the database ([]string , []int, []byte, []time.Time, etc.)
+// and there is only one column, the rows will be assigned to dest.
+// if dest is a struct, it will be mapped to the dbx tag field in the struct according to the name of each column.
+func (e *executor) Query(dest interface{}, query string, args ...interface{}) (err error) {
+	return e.QueryContext(context.Background(), dest, query, args...)
+}
+
+// MustQuery is the same as Query but panics if cannot query.
+func (e *executor) MustQuery(dest interface{}, query string, args ...interface{}) {
+	err := e.QueryContext(context.Background(), dest, query, args...)
 	if err != nil {
 		panic(err)
 	}
 }
 
-//SQLMustFirst
-func (e *ComplexExec) SQLMustFirst(dest interface{}, query string, args ...interface{}) {
-	e.SQLMustFirstContext(context.Background(), dest, query, args...)
-}
-
-//SQLFindContext
-func (e *ComplexExec) SQLFindContext(ctx context.Context, dest interface{}, query string, args ...interface{}) (err error) {
-	stmt, err := e.SQLPrepareContext(ctx, query)
+// ExecContext executes a query without returning any rows.
+// The args are for any placeholder parameters in the query.
+func (e *executor) ExecContext(ctx context.Context, query string, args ...interface{}) (rs sql.Result, err error) {
+	stmt, err := e.PrepareContext(ctx, query)
 	if err != nil {
 		return
 	}
 	defer func() {
-		err := stmt.Close()
-		if err != nil {
-			fmt.Printf("close stmt err:%v", err)
-		}
+		_ = stmt.Close()
 	}()
-	return stmt.FindContext(ctx, dest, args...)
+	return stmt.ExecContext(ctx, args...)
+	//printSQL(query, args, e.option)
+	//return e.preparer.ExecContext(ctx, query, args...)
 }
 
-//SQLFind
-func (e *ComplexExec) SQLFind(dest interface{}, query string, args ...interface{}) (err error) {
-	return e.SQLFindContext(context.Background(), dest, query, args...)
+// Exec executes a query without returning any rows.
+// The args are for any placeholder parameters in the query.
+func (e *executor) Exec(query string, args ...interface{}) (rs sql.Result, err error) {
+	return e.ExecContext(context.Background(), query, args...)
 }
 
-//SQLMustFindContext
-func (e *ComplexExec) SQLMustFindContext(ctx context.Context, dest interface{}, query string, args ...interface{}) {
-	err := e.SQLFindContext(ctx, dest, query, args...)
-	if err != nil {
-		panic(err)
-	}
-}
-
-//SQLMustFind
-func (e *ComplexExec) SQLMustFind(dest interface{}, query string, args ...interface{}) {
-	e.SQLMustFindContext(context.Background(), dest, query, args...)
-}
-
-//SQLExecContext
-func (e *ComplexExec) SQLExecContext(ctx context.Context, query string, args ...interface{}) (rs sql.Result, err error) {
-	printSQL(query, args, e.option.out)
-	return e.preparer.ExecContext(ctx, query, args...)
-}
-
-//SQLExec
-func (e *ComplexExec) SQLExec(query string, args ...interface{}) (rs sql.Result, err error) {
-	return e.SQLExecContext(context.Background(), query, args...)
-}
-
-// SQLMustExecContext is like SQLExecContext but panics if the query cannot be execute.
-func (e *ComplexExec) SQLMustExecContext(ctx context.Context, query string, args ...interface{}) (rs sql.Result) {
-	rs, err := e.SQLExecContext(ctx, query, args...)
+// MustExec is the same as  Exec but panics if cannot insert.
+func (e *executor) MustExec(query string, args ...interface{}) (rs sql.Result) {
+	rs, err := e.ExecContext(context.Background(), query, args...)
 	if err != nil {
 		panic(err)
 	}
 	return
 }
 
-// SQLMustExec is like SQLExec but panics if the query cannot be execute.
-func (e *ComplexExec) SQLMustExec(query string, args ...interface{}) (rs sql.Result) {
-	return e.SQLMustExecContext(context.Background(), query, args...)
-}
-
-// DQLExecContext executes a DQL query without returning any rows.
-// The argument are for any placeholder parameters in the query.
-func (e *ComplexExec) DQLExecContext(ctx context.Context, query string, argument DQLArgument) (sql.Result, error) {
-	query, args, err := DSLCompile(query, argument)
+// NamedExecContext executes a Named query without returning any rows.
+// The arg are for any placeholder parameters in the query.
+func (e *executor) NamedExecContext(ctx context.Context, query string, arg map[string]interface{}) (sql.Result, error) {
+	query, args, err := namedCompile(query, arg)
 	if err != nil {
 		return nil, err
 	}
-	return e.SQLExecContext(ctx, query, args...)
+	return e.ExecContext(ctx, query, args...)
 }
 
-// DQLExec executes a DQL query without returning any rows.
-// The argument are for any placeholder parameters in the query.
-func (e *ComplexExec) DQLExec(query string, argument DQLArgument) (sql.Result, error) {
-	return e.DQLExecContext(context.Background(), query, argument)
+// NamedExec executes a Named query without returning any rows.
+// The arg are for any placeholder parameters in the query.
+func (e *executor) NamedExec(query string, arg map[string]interface{}) (sql.Result, error) {
+	return e.NamedExecContext(context.Background(), query, arg)
 }
 
-//DQLMustExecContext
-func (e *ComplexExec) DQLMustExecContext(ctx context.Context, query string, argument DQLArgument) (r sql.Result) {
-	r, err := e.DQLExecContext(ctx, query, argument)
+// MustNamedExec is the same as  NamedExec but panics if cannot insert.
+func (e *executor) MustNamedExec(query string, arg map[string]interface{}) sql.Result {
+	r, err := e.NamedExecContext(context.Background(), query, arg)
 	if err != nil {
 		panic(err)
 	}
-	return
+	return r
 }
 
-//DQLMustExec
-func (e *ComplexExec) DQLMustExec(query string, argument DQLArgument) sql.Result {
-	return e.DQLMustExecContext(context.Background(), query, argument)
-}
-
-//DQLFirstContext
-func (e *ComplexExec) DQLFirstContext(ctx context.Context, dest interface{}, query string, argument DQLArgument) (err error) {
-	query, args, err := DSLCompile(query, argument)
-	err.Error()
+// NamedGetContext execute the Named query and scan the first row to dest, dest must be a pointer.
+// if dest is a type supported by the database (string , int, []byte, time.Time, etc.)
+// and there is only one column, the row will be assigned to dest.
+// if dest is a struct, it will be mapped to the dbx tag field in the struct according to the name of each column.
+// A sql.ErrNoRows is returned if the result set is empty.
+func (e *executor) NamedGetContext(ctx context.Context, dest interface{}, query string, arg map[string]interface{}) (err error) {
+	query, args, err := namedCompile(query, arg)
 	if err != nil {
 		return
 	}
-	return e.SQLFirstContext(ctx, dest, query, args...)
+	return e.GetContext(ctx, dest, query, args...)
 }
 
-//DQLFirst
-func (e *ComplexExec) DQLFirst(dest interface{}, query string, argument DQLArgument) (err error) {
-	return e.DQLFirstContext(context.Background(), dest, query, argument)
+// NamedGet execute the Named query and scan the first row to dest, dest must be a pointer.
+// if dest is a type supported by the database (string , int, []byte, time.Time, etc.)
+// and there is only one column, the row will be assigned to dest.
+// if dest is a struct, it will be mapped to the dbx tag field in the struct according to the name of each column.
+// A sql.ErrNoRows is returned if the result set is empty.
+func (e *executor) NamedGet(dest interface{}, query string, arg map[string]interface{}) (err error) {
+	return e.NamedGetContext(context.Background(), dest, query, arg)
 }
 
-//DQLMustFirstContext
-func (e *ComplexExec) DQLMustFirstContext(ctx context.Context, dest interface{}, query string, argument DQLArgument) {
-	err := e.DQLFirstContext(ctx, dest, query, argument)
+// MustNamedGet is the same as NamedGet, if there is a error in query, it will panics,
+// but sql.ErrNoRows will return false
+func (e *executor) MustNamedGet(dest interface{}, query string, arg map[string]interface{}) bool {
+	err := e.NamedGetContext(context.Background(), dest, query, arg)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false
+		}
 		panic(err)
 	}
+	return true
 }
 
-//DQLMustFirst
-func (e *ComplexExec) DQLMustFirst(dest interface{}, query string, argument DQLArgument) {
-	e.DQLMustFirstContext(context.Background(), dest, query, argument)
-}
-
-// DQLFindContext executes DQL that put rows into dest
-func (e *ComplexExec) DQLFindContext(ctx context.Context, dest interface{}, query string, argument DQLArgument) (err error) {
-	query, args, err := DSLCompile(query, argument)
+// NamedQueryContext execute the query and scan the rows to dest, dest must be a slice of pointer.
+// if dest is a type supported by the database ([]string , []int, []byte, []time.Time, etc.)
+// and there is only one column, the rows will be assigned to dest.
+// if dest is a struct, it will be mapped to the dbx tag field in the struct according to the name of each column.
+func (e *executor) NamedQueryContext(ctx context.Context, dest interface{}, query string, arg map[string]interface{}) (err error) {
+	query, args, err := namedCompile(query, arg)
 	if err != nil {
 		return
 	}
-	return e.SQLFindContext(ctx, dest, query, args...)
+	return e.QueryContext(ctx, dest, query, args...)
 }
 
-// DQLFind executes DQL that put rows into dest
-func (e *ComplexExec) DQLFind(dest interface{}, query string, argument DQLArgument) (err error) {
-	return e.DQLFindContext(context.Background(), dest, query, argument)
+// NamedQuery execute the query and scan the rows to dest, dest must be a slice of pointer.
+// if dest is a type supported by the database ([]string , []int, []byte, []time.Time, etc.)
+// and there is only one column, the rows will be assigned to dest.
+// if dest is a struct, it will be mapped to the dbx tag field in the struct according to the name of each column.
+func (e *executor) NamedQuery(dest interface{}, query string, arg map[string]interface{}) (err error) {
+	return e.NamedQueryContext(context.Background(), dest, query, arg)
 }
 
-// DQLMustFindContext executes DQL that put rows into dest
-func (e *ComplexExec) DQLMustFindContext(ctx context.Context, dest interface{}, query string, argument DQLArgument) {
-	err := e.DQLFindContext(ctx, dest, query, argument)
+// MustNamedQuery like NamedQuery but panics if cannot query.
+func (e *executor) MustNamedQuery(dest interface{}, query string, arg map[string]interface{}) {
+	err := e.NamedQuery(dest, query, arg)
 	if err != nil {
 		panic(err)
 	}
-}
-
-// DQLMustFind executes a dbx query language that put rows into dest
-func (e *ComplexExec) DQLMustFind(dest interface{}, query string, argument DQLArgument) {
-	e.DQLMustFindContext(context.Background(), dest, query, argument)
 }

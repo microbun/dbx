@@ -8,8 +8,8 @@ import (
 )
 
 func Test_compile(t *testing.T) {
-	cq, ca, err := DSLCompile(`update conversation_list set status=:status, updated_at = datetime('now')
-	where conversation_id=:conversationID and created_by IN (:uid) or status!=:status and status!=:status`, DQLArgument{
+	cq, ca, err := namedCompile(`update conversation_list set status=:status, updated_at = datetime('now')
+	where conversation_id=:conversationID and created_by IN (:uid) or status!=:status and status!=:status`, map[string]interface{}{
 		"status":         500,
 		"conversationID": "abc",
 		"uid":            []int64{1, 2, 3, 4},

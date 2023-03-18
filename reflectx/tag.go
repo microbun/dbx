@@ -34,6 +34,8 @@ func (p Properties) Values() []interface{} {
 type Tag struct {
 	Column        string
 	PrimaryKey    bool
+	Insert        string
+	Update        string
 	AutoIncrement bool
 }
 
@@ -46,6 +48,12 @@ func newDbxTag(tag string) *Tag {
 			propName := strings.TrimSpace(prop[:splitIdx])
 			if propName == "column" {
 				t.Column = strings.TrimSpace(prop[splitIdx+1:])
+			}
+			if propName == "update" {
+				t.Update = strings.TrimSpace(prop[splitIdx+1:])
+			}
+			if propName == "insert" {
+				t.Insert = strings.TrimSpace(prop[splitIdx+1:])
 			}
 		} else {
 			if strings.TrimSpace(prop) == "primary_key" {

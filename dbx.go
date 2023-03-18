@@ -3,24 +3,24 @@ package dbx
 import (
 	"context"
 	"database/sql"
-	"io"
-	"os"
+	"time"
 )
 
 type Options struct {
-	out       io.Writer
-	generator SQLGenerator
+	Logger    Logger
+	Generator SQLGenerator
+	Location  *time.Location
 }
 
 type DB struct {
-	ComplexExecutor
+	*executor
 	option *Options
 	rawDB  *sql.DB
 }
 
 func newDBX(db *sql.DB, options *Options) *DB {
-	exec := newComplexExec(db, options)
-	return &DB{ComplexExecutor: exec, option: options, rawDB: db}
+	exec := newDefaultExecutor(db, options)
+	return &DB{executor: exec, option: options, rawDB: db}
 }
 
 //Connect a database to dbx
@@ -34,33 +34,15 @@ func Open(driverName string, dataSourceName string) (*DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	switch driverName {
-	case "sqlite3":
-		return newDBX(db, &Options{
-			out:       os.Stdout,
-			generator: NewSQLiteSQLiteGenerator(),
-		}), nil
-	case "mysql":
-		return newDBX(db, &Options{
-			out:       os.Stdout,
-			generator: NewMySQLSQLiteGenerator(),
-		}), nil
-	default:
-		return newDBX(db, &Options{
-			out:       os.Stdout,
-			generator: NewCommonSQLGenerator(),
-		}), nil
-	}
+	return newDBX(db, &Options{
+		Logger:    logger,
+		Generator: NewCommonSQLGenerator(),
+		Location: time.Local,
+	}), nil
 }
 
-// SetSQLGenerator set a SQLGenerator for struct.
-func (d *DB) SetSQLGenerator(generator SQLGenerator) {
-	d.option.generator = generator
-}
-
-// SetSQLOutput write SQL statements to io, usually used to view SQL execution logs
-func (d *DB) SetSQLOutput(io io.Writer) {
-	d.option.out = io
+func (d *DB) Options() *Options {
+	return d.option
 }
 
 //BeginTx begin a Transaction with opts
@@ -77,11 +59,8 @@ func (d *DB) Begin() (*Tx, error) {
 	return d.BeginTx(context.Background(), nil)
 }
 
-//TxFunc is Transaction process func
-type TxFunc func(*Tx) error
-
-//ExecTx begin a transaction and commit automatically,automatically roll back when there is an error.
-func (d *DB) ExecTx(txProc TxFunc) error {
+//Transaction begin a transaction and commit automatically,automatically roll back when there is an error.
+func (d *DB) Transaction(fn func(*Tx) error) error {
 	tx, err := d.Begin()
 	if err != nil {
 		return err
@@ -93,7 +72,7 @@ func (d *DB) ExecTx(txProc TxFunc) error {
 			err = txErr
 		}
 	}()
-	err = txProc(tx)
+	err = fn(tx)
 	if err != nil {
 		return err
 	}

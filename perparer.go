@@ -13,6 +13,6 @@ type preparer interface {
 	Exec(query string, args ...interface{}) (sql.Result, error)
 	ExecContext(ctx context.Context, query string, args ...interface{}) (r sql.Result, err error)
 
-	Query(query string, args ...interface{}) (*sql.Rows, error)
-	QueryContext(ctx context.Context, query string, args ...interface{}) (r *sql.Rows, err error)
+	//Query(query string, args ...interface{}) (*sql.Rows, error)
+	//QueryContext(ctx context.Context, query string, args ...interface{}) (r *sql.Rows, err error)
 }

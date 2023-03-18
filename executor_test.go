@@ -2,32 +2,30 @@ package dbx
 
 import "context"
 
-var db, err = Open("sqlite3", "file:locked.sqlite")
 
-func ExampleComplexExec_DQLExecContext() {
-	_, err = db.DQLExecContext(context.Background(), "update account set name=:name", DQLArgument{
+
+func ExampleComplexExec_NamedExecContext() {
+	_, err = db.NamedExecContext(context.Background(), "update account set name=:name", map[string]interface{}{
 		"name": "Lucy",
 	})
 }
 
-func ExampleComplexExecutor_DQLExec() {
-	_, err = db.DQLExec("update account set name=:name", DQLArgument{
+func ExampleComplexExecutor_NamedExec() {
+	_, err = db.NamedExec("update account set name=:name", map[string]interface{}{
 		"name": "Lucy",
 	})
 }
 
-func ExampleComplexExec_DQLFirst() {
-	err = db.DQLFirst(nil, "update account set name=:name", DQLArgument{
-		"name": "Lucy",
-	})
-}
 
-func ExampleComplexExec_DQLFind() {
+
+
+func ExampleComplexExec_NamedFind() {
 	account := &Account{}
-	err := db.DQLFind(account, "select * from account where id in (:id)", DQLArgument{
+	err := db.NamedQuery(account, "select * from account where id in (:id)", map[string]interface{}{
 		"id": []int{1, 2, 3},
 	})
 	if err != nil {
 		panic(err)
 	}
 }
+

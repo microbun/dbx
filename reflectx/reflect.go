@@ -59,6 +59,7 @@ var mapType = map[string]valueType{
 	"time.Time":                basicType,
 }
 
+
 func ReflectProperty(v reflect.Value, mapping map[string]Property) {
 	direct := reflect.Indirect(v)
 	count := direct.NumField()
@@ -67,9 +68,17 @@ func ReflectProperty(v reflect.Value, mapping map[string]Property) {
 		fv := direct.Field(i)
 		ft := dt.Field(i)
 		tag := newDbxTag(ft.Tag.Get("dbx"))
-		if !IsBasicType(ft.Type) {
-			ReflectProperty(fv, mapping)
+
+		if ft.Type.Kind() == reflect.Ptr {
+			if IsStructType(ft.Type.Elem()) {
+				ReflectProperty(fv, mapping)
+			}
+		} else {
+			if IsStructType(ft.Type) {
+				ReflectProperty(fv, mapping)
+			}
 		}
+
 		if tag.Column != "" {
 			mapping[tag.Column] = Property{
 				InterValue: fv.Addr().Interface(),
@@ -79,6 +88,7 @@ func ReflectProperty(v reflect.Value, mapping map[string]Property) {
 		}
 	}
 }
+
 
 func indirectPtr(dest interface{}) (reflect.Value, error) {
 	value := reflect.ValueOf(dest)
@@ -92,11 +102,6 @@ func IsBasicValue(value reflect.Value) bool {
 	fullName := value.Type().PkgPath() + "." + value.Type().Name()
 	return convertType[value.Kind()] == basicType || mapType[fullName] == basicType
 }
-
-// func isBasicValue(value reflect.InterValue) bool {
-// 	fullname := value.Type().PkgPath() + "." + value.Type().Name()
-// 	return convertType[value.Kind()] == basicType || mapType[fullname] == basicType
-// }
 
 func IsStructValue(value reflect.Value) bool {
 	return convertType[value.Kind()] == structType
@@ -112,5 +117,15 @@ func IsBasicType(t reflect.Type) bool {
 }
 
 func IsStructType(t reflect.Type) bool {
-	return convertType[t.Kind()] == structType
+	fullName := t.PkgPath() + "." + t.Name()
+	return convertType[t.Kind()] == structType && mapType[fullName] != basicType
+}
+
+func ActualValue(v reflect.Value) reflect.Value{
+	kind := v.Kind()
+	for kind == reflect.Ptr {
+		v = reflect.Indirect(v)
+		kind = v.Kind()
+	}
+	return v
 }

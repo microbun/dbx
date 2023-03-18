@@ -20,7 +20,7 @@ func TestTx_Insert(t *testing.T) {
 	nn := sql.NullString{}
 	nn.Scan("abc")
 	account.NickName = nn
-	_, err = tx.StructInsert(&account)
+	_, err = tx.Insert(&account)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,5 +29,5 @@ func TestTx_Insert(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// rawTx.SQLFirst(&account, "select * from accounts")
+	// rawTx.Get(&account, "select * from accounts")
 }

@@ -4,18 +4,19 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/microbun/dbx/reflectx"
 	"reflect"
+
+	"git.basebit.me/enigma/dbx/reflectx"
 )
 
 type mode int
 
 const (
-	one   mode = 2
-	array mode = 3
+	single mode = 1
+	slice  mode = 2
 )
 
-func toDest(rows *sql.Rows, dest interface{}, m mode) error {
+func mapping(rows *sql.Rows, dest interface{}, m mode) error {
 	defer func() {
 		err := rows.Close()
 		if err != nil {
@@ -23,8 +24,12 @@ func toDest(rows *sql.Rows, dest interface{}, m mode) error {
 		}
 	}()
 	value := reflect.ValueOf(dest)
+	//TODO: add map support
+	if value.Kind() == reflect.Map {
+		return errors.New("dest unsupported map")
+	}
 	if value.Kind() != reflect.Ptr {
-		return errors.New("argument not a ptr")
+		return errors.New("dest must be a ptr")
 	}
 	direct := reflect.Indirect(value)
 	columns, err := rows.Columns()
@@ -32,13 +37,13 @@ func toDest(rows *sql.Rows, dest interface{}, m mode) error {
 		return err
 	}
 	switch m {
-	case array:
+	case slice:
 		{
-			return toArray(direct, columns, rows)
+			return toSlice(direct, columns, rows)
 		}
-	case one:
+	case single:
 		{
-			return toOne(direct, columns, rows)
+			return toSingle(direct, columns, rows)
 		}
 	default:
 		{
@@ -47,31 +52,34 @@ func toDest(rows *sql.Rows, dest interface{}, m mode) error {
 	}
 }
 
-func toOne(dest reflect.Value, columns []string, rows *sql.Rows) error {
+func toSingle(dest reflect.Value, columns []string, rows *sql.Rows) error {
 	if reflectx.IsBasicValue(dest) {
 		if len(columns) == 1 {
-			for rows.Next() {
+			if exists := rows.Next(); exists {
 				return rows.Scan(dest.Addr().Interface())
+			} else {
+				return sql.ErrNoRows
 			}
 		} else {
 			return fmt.Errorf("multi columns not scan to a basic type")
 		}
 	} else if reflectx.IsStructValue(dest) {
 		properties := reflectx.NewProperties(len(columns))
-		for rows.Next() {
+		if exists := rows.Next(); exists {
 			err := traversal(dest, properties, columns)
 			if err != nil {
 				return err
 			}
 			return rows.Scan(properties.Values()...)
+		} else {
+			return sql.ErrNoRows
 		}
 	} else {
 		return fmt.Errorf("argument not a struct or basic")
 	}
-	return nil
 }
 
-func toArray(dest reflect.Value, columns []string, rows *sql.Rows) error {
+func toSlice(dest reflect.Value, columns []string, rows *sql.Rows) error {
 	kind := dest.Kind()
 	if kind != reflect.Array && kind != reflect.Slice {
 		return fmt.Errorf("argument not a array or slice")
@@ -120,7 +128,7 @@ func toArray(dest reflect.Value, columns []string, rows *sql.Rows) error {
 			}
 		}
 	} else {
-		return fmt.Errorf("unknown array type")
+		return fmt.Errorf("unknown slice type")
 	}
 	return nil
 }
