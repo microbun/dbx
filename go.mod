@@ -1,4 +1,4 @@
-module git.basebit.me/enigma/dbx
+module github.com/microbun/dbx
 
 go 1.16
 

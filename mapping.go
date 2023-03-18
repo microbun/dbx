@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"git.basebit.me/enigma/dbx/reflectx"
+	"github.com/microbun/dbx/reflectx"
 )
 
 type mode int

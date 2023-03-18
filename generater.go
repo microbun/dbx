@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"sort"
 
-	"git.basebit.me/enigma/dbx/reflectx"
+	"github.com/microbun/dbx/reflectx"
 )
 
 type SQLGenerator interface {
@@ -69,7 +69,7 @@ func (CommonSQLGenerator) UpdateSQL(value interface{}, columns ...string) (query
 	for _, p := range propsArr {
 		include = append(include, p.Tag.Column)
 		props[p.Tag.Column] = p
-		if p.Tag.PrimaryKey{
+		if p.Tag.PrimaryKey {
 			primaryKey = p.Tag.Column + "=?"
 			primaryKeyValue = p.InterValue
 		}
@@ -116,8 +116,8 @@ func (CommonSQLGenerator) InsertSQL(value interface{}) (autoIncrement *reflect.V
 	for _, prop := range props {
 		if prop.Tag.AutoIncrement {
 			autoIncrement = prop.Value
-		}else{
-			columns += ", `" + prop.Tag.Column+"`"
+		} else {
+			columns += ", `" + prop.Tag.Column + "`"
 			if prop.Tag.Insert != "" {
 				strArg += "," + prop.Tag.Insert
 			} else if prop.Tag.Update != "" {

@@ -3,9 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
-	"git.basebit.me/enigma/dbx/dbx-gen-module/internal"
 	"time"
 
+	"github.com/microbun/dbx/dbx-gen-module/internal"
 )
 
 type Avatar struct {

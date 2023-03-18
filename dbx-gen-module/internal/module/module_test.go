@@ -2,10 +2,11 @@ package module
 
 import (
 	"encoding/hex"
-	"git.basebit.me/enigma/dbx"
-	"git.basebit.me/enigma/dbx/escape"
-	_ "github.com/go-sql-driver/mysql" //justifying
 	"testing"
+
+	_ "github.com/go-sql-driver/mysql" //justifying
+	"github.com/microbun/dbx"
+	"github.com/microbun/dbx/escape"
 )
 
 var db *dbx.DB
@@ -73,7 +74,7 @@ func TestQuery(t *testing.T) {
 	//keyword:="\\%Data"
 	keyword := "'"
 	err := db.NamedQuery(&rs, "select * from org_lang where name like concat('%',:name,'%')", map[string]interface{}{
-		"name":escape.Like(keyword),
+		"name": escape.Like(keyword),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -84,21 +85,20 @@ func TestQuery(t *testing.T) {
 
 }
 
-
 type Timeline struct {
 	AvgProgress float32 `dbx:"column:avg_progress" json:"avg_progress,omitempty" `
-	MinStart    string `dbx:"column:min_start" json:"min_start,omitempty" `
-	MaxEnd      string `dbx:"column:max_end" json:"max_end,omitempty" `
+	MinStart    string  `dbx:"column:min_start" json:"min_start,omitempty" `
+	MaxEnd      string  `dbx:"column:max_end" json:"max_end,omitempty" `
 }
 
-func TestQueryWorkflow(t *testing.T)  {
+func TestQueryWorkflow(t *testing.T) {
 	db, err := dbx.Open("mysql", "root:basebitxdp@tcp(172.18.0.210:32600)/enigma2_workflowx?parseTime=True&loc=Local")
 	if err != nil {
 		t.Fatal(err)
 	}
-	r:=&Timeline{}
-	err = db.Get(r,"select AVG(progress) as avg_progress,min( if(UNIX_TIMESTAMP(started_at)>0,started_at,null)) as min_start,max(if(UNIX_TIMESTAMP(end_at)>0,end_at,null)) as max_end from workflow where project_id='2a56f81e-9e87-4ebf-8a5a-6c729bd8fdef' and deleted_at is null")
-	if err!=nil{
+	r := &Timeline{}
+	err = db.Get(r, "select AVG(progress) as avg_progress,min( if(UNIX_TIMESTAMP(started_at)>0,started_at,null)) as min_start,max(if(UNIX_TIMESTAMP(end_at)>0,end_at,null)) as max_end from workflow where project_id='2a56f81e-9e87-4ebf-8a5a-6c729bd8fdef' and deleted_at is null")
+	if err != nil {
 		t.Fatal(err)
 	}
 

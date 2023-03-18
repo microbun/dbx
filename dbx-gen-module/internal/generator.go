@@ -11,8 +11,8 @@ import (
 	"strings"
 	"text/template"
 
-	"git.basebit.me/enigma/dbx"
 	_ "github.com/go-sql-driver/mysql" //justifying
+	"github.com/microbun/dbx"
 )
 
 var types = map[string]string{
@@ -87,7 +87,7 @@ func (c Column) Type() string {
 	if strings.ToUpper(c.ColumnType) == "TINYINT(1)" {
 		typeName = "bool"
 	}
-	if typeName == "[]byte"{
+	if typeName == "[]byte" {
 		pointer = ""
 	}
 	return pointer + typeName

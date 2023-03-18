@@ -2,11 +2,12 @@ package dbx
 
 import (
 	"fmt"
-	"git.basebit.me/enigma/dbx/reflectx"
 	"reflect"
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/microbun/dbx/reflectx"
 )
 
 var reg = regexp.MustCompile(":\\w+")
@@ -26,12 +27,12 @@ func namedCompile(query string, p map[string]interface{}) (string, []interface{}
 			args = append(args, value)
 			placeholders[parameter] = "?"
 		} else if reflectx.IsSliceType(rt) {
-			if rt.Elem().String()=="uint8"{
+			if rt.Elem().String() == "uint8" {
 				args = append(args, value)
 				placeholders[parameter] = "?"
 				continue
 			}
-			if rt.Elem().String()!="[]uint8" && rt.Elem().String()!="[]int8" && !reflectx.IsBasicType(rt.Elem()) {
+			if rt.Elem().String() != "[]uint8" && rt.Elem().String() != "[]int8" && !reflectx.IsBasicType(rt.Elem()) {
 				return "", nil, fmt.Errorf("unsupport args type at %s", parameter)
 			}
 			repeat := make([]string, 0)
@@ -68,4 +69,3 @@ func namedCompile(query string, p map[string]interface{}) (string, []interface{}
 	return query, args, nil
 
 }
-
