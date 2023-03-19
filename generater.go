@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"time"
 
 	"github.com/microbun/dbx/reflectx"
 )
@@ -89,7 +90,12 @@ func (CommonSQLGenerator) UpdateSQL(value interface{}, columns ...string) (query
 			continue
 		} else {
 			if prop.Tag.Update != "" {
-				columnsStr += ", " + prop.Tag.Column + "=" + prop.Tag.Update
+				if prop.Tag.Update == "time.Now()" {
+					columnsStr += ", " + prop.Tag.Column + "=?"
+					values = append(values, time.Now())
+				} else {
+					columnsStr += ", " + prop.Tag.Column + "=" + prop.Tag.Update
+				}
 			} else {
 				columnsStr += ", " + prop.Tag.Column + "=?"
 				values = append(values, prop.InterValue)
@@ -119,9 +125,19 @@ func (CommonSQLGenerator) InsertSQL(value interface{}) (autoIncrement *reflect.V
 		} else {
 			columns += ", `" + prop.Tag.Column + "`"
 			if prop.Tag.Insert != "" {
-				strArg += "," + prop.Tag.Insert
+				if prop.Tag.Insert == "time.Now()" {
+					strArg += ",?"
+					values = append(values, time.Now())
+				} else {
+					strArg += "," + prop.Tag.Insert
+				}
 			} else if prop.Tag.Update != "" {
-				strArg += "," + prop.Tag.Update
+				if prop.Tag.Update == "time.Now()" {
+					strArg += ",?"
+					values = append(values, time.Now())
+				} else {
+					strArg += "," + prop.Tag.Update
+				}
 			} else {
 				strArg += ",?"
 				values = append(values, prop.InterValue)

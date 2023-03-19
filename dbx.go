@@ -7,9 +7,15 @@ import (
 )
 
 type Options struct {
-	Logger    Logger
-	Generator SQLGenerator
-	Location  *time.Location
+	Logger     Logger
+	Generator  SQLGenerator
+	Location   *time.Location
+	TimeFormat func(t *time.Time) string
+}
+
+func TimeFormat(t *time.Time) string {
+	// time.RFC3339
+	return t.In(t.UTC().Location()).Format("2006-01-02 15:04:05")
 }
 
 type DB struct {
@@ -37,7 +43,7 @@ func Open(driverName string, dataSourceName string) (*DB, error) {
 	return newDBX(db, &Options{
 		Logger:    logger,
 		Generator: NewCommonSQLGenerator(),
-		Location: time.Local,
+		Location:  time.Local,
 	}), nil
 }
 

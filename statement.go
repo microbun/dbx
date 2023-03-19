@@ -3,6 +3,7 @@ package dbx
 import (
 	"context"
 	"database/sql"
+	"time"
 )
 
 // Stmt is a preparer statement.
@@ -29,8 +30,33 @@ func newStmtContext(ctx context.Context, preparer preparer, query string, option
 	}, nil
 }
 
-func (s *Stmt) GetContext(ctx context.Context, dest interface{}, args ...interface{}) error {
+func timeFormat(fn func(t *time.Time) string, args ...interface{}) []interface{} {
+	var _args = make([]interface{}, 0)
+	for _, arg := range args {
+
+		if t, ok := arg.(*time.Time); ok {
+			_args = append(_args, fn(t))
+			continue
+		}
+		if t, ok := arg.(time.Time); ok {
+			_args = append(_args, fn(&t))
+			continue
+		}
+		_args = append(_args, arg)
+	}
+	return _args
+}
+
+func (s *Stmt) format(ctx context.Context, args ...interface{}) []interface{} {
+	if s.option.TimeFormat != nil {
+		args = timeFormat(s.option.TimeFormat, args...)
+	}
 	printSQL(s.rawQuery, args, s.option)
+	return args
+}
+
+func (s *Stmt) GetContext(ctx context.Context, dest interface{}, args ...interface{}) error {
+	args = s.format(ctx, args...)
 	rows, err := s.stmt.QueryContext(ctx, args...)
 	if err != nil {
 		return err
@@ -47,7 +73,7 @@ func (s *Stmt) Get(dest interface{}, args ...interface{}) error {
 }
 
 func (s *Stmt) QueryContext(ctx context.Context, dest interface{}, args ...interface{}) error {
-	printSQL(s.rawQuery, args, s.option)
+	args = s.format(ctx, args...)
 	rows, err := s.stmt.QueryContext(ctx, args...)
 	if err != nil {
 		return err
@@ -63,17 +89,8 @@ func (s *Stmt) Query(dest interface{}, args ...interface{}) error {
 	return s.QueryContext(context.Background(), dest, args...)
 }
 
-//func (s *Stmt) QueryRowContext(ctx context.Context, args ...interface{}) *sql.Row {
-//	printSQL(s.rawQuery, args, s.option)
-//	return s.stmt.QueryRowContext(ctx, args...)
-//}
-//
-//func (s *Stmt) QueryRow(args ...interface{}) *sql.Row {
-//	return s.QueryRowContext(context.Background(), args...)
-//}
-
 func (s *Stmt) ExecContext(ctx context.Context, args ...interface{}) (sql.Result, error) {
-	printSQL(s.rawQuery, args, s.option)
+	args = s.format(ctx, args...)
 	return s.stmt.ExecContext(ctx, args...)
 }
 

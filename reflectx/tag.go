@@ -41,7 +41,7 @@ type Tag struct {
 
 func newDbxTag(tag string) *Tag {
 	t := &Tag{}
-	props := strings.Split(tag, ",")
+	props := strings.Split(tag, ";")
 	for _, prop := range props {
 		if strings.ContainsAny(prop, ":") {
 			splitIdx := strings.Index(prop, ":")
