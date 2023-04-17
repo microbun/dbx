@@ -46,7 +46,6 @@ func reflectTable(value interface{}) (tableName string, props reflectx.Propertie
 }
 
 type CommonSQLGenerator struct {
-	AutoUpdated bool
 }
 
 func NewCommonSQLGenerator() *CommonSQLGenerator {
@@ -92,7 +91,9 @@ func (CommonSQLGenerator) UpdateSQL(value interface{}, columns ...string) (query
 			if prop.Tag.Update != "" {
 				if prop.Tag.Update == "time.Now()" {
 					columnsStr += ", " + prop.Tag.Column + "=?"
-					values = append(values, time.Now())
+					now := time.Now()
+					prop.Value.Set(reflect.ValueOf(now))
+					values = append(values, now)
 				} else {
 					columnsStr += ", " + prop.Tag.Column + "=" + prop.Tag.Update
 				}
@@ -127,14 +128,18 @@ func (CommonSQLGenerator) InsertSQL(value interface{}) (autoIncrement *reflect.V
 			if prop.Tag.Insert != "" {
 				if prop.Tag.Insert == "time.Now()" {
 					strArg += ",?"
-					values = append(values, time.Now())
+					now := time.Now()
+					prop.Value.Set(reflect.ValueOf(now))
+					values = append(values, now)
 				} else {
 					strArg += "," + prop.Tag.Insert
 				}
 			} else if prop.Tag.Update != "" {
 				if prop.Tag.Update == "time.Now()" {
 					strArg += ",?"
-					values = append(values, time.Now())
+					now := time.Now()
+					prop.Value.Set(reflect.ValueOf(now))
+					values = append(values, now)
 				} else {
 					strArg += "," + prop.Tag.Update
 				}

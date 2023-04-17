@@ -100,16 +100,16 @@ func (c Column) Tag() string {
 		omitempty = ",omitempty"
 	}
 	if c.ColumnKey == "PRI" {
-		dbxTag += ",primary_key"
+		dbxTag += ";primary_key"
 	}
 	if strings.Contains(c.Extra, "auto_increment") {
-		dbxTag += ",auto_increment"
+		dbxTag += ";auto_increment"
 	}
 	if c.ColumnName == "created_at" {
-		dbxTag += ",insert:current_timestamp"
+		dbxTag += ";insert:time.Now()"
 	}
 	if c.ColumnName == "updated_at" {
-		dbxTag += ",insert:current_timestamp,update:current_timestamp"
+		dbxTag += ";insert:time.Now();update:time.Now()"
 	}
 
 	dbxTag += "\""
