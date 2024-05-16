@@ -3,7 +3,7 @@
 Open Database
 
 ```go
-db, err := Open("sqlite3", "file:locked.sqlite")
+db, err := dbx.Open("sqlite3", "file:locked.sqlite")
 ```
 
 Create Table
@@ -56,3 +56,5 @@ var accountSingle = Account{}
 err = db.SQLFirst(&accountSingle, "select * from accounts where id = ?", 33)
 
 ```
+
+# Generate

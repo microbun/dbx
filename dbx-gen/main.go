@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/microbun/dbx/dbx-gen-module/internal"
+	"github.com/microbun/dbx/dbx-gen/internal"
 )
 
 type Avatar struct {
