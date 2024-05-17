@@ -2,6 +2,7 @@ package internal
 
 import (
 	"bytes"
+	"database/sql"
 	_ "embed"
 	"errors"
 	"fmt"
@@ -11,7 +12,6 @@ import (
 	"strings"
 	"text/template"
 
-	_ "github.com/go-sql-driver/mysql" //justifying
 	"github.com/microbun/dbx"
 )
 
@@ -45,6 +45,14 @@ var types = map[string]string{
 	// "SET":   "",
 }
 
+type SQLite3Column struct {
+	ColumnID     int            `dbx:"column:cid" `
+	ColumnName   string         `dbx:"column:name" `
+	DataType     string         `dbx:"column:type" `
+	NotNull      int            `dbx:"column:notnull"`
+	DefaultValue sql.NullString `dbx:"column:dflt_value"`
+	ColumnKey    int            `dbx:"column:pk"`
+}
 type Column struct {
 	TableName     string `dbx:"column:table_name" `
 	ColumnName    string `dbx:"column:column_name" `
@@ -145,23 +153,53 @@ func (c Context) Imports() []string {
 }
 
 func generate() error {
-	if strings.ToLower(Options.Driver) != "mysql" {
+	if strings.ToLower(Options.Driver) != "mysql" && strings.ToLower(Options.Driver) != "sqlite3" {
 		return errors.New("unsupport database")
 	}
-
 	db, err := dbx.Open(Options.Driver, Options.DataSourceName)
 	if err != nil {
 		return err
 	}
 	db.Options().Logger = nil
 	var columns []*Column
-	err = db.Query(&columns, `
-	select table_name,column_name,column_comment,data_type,is_nullable,column_key,extra,column_type
-	from information_schema.columns
-	where TABLE_SCHEMA=?
-	`, Options.Schema)
-	if err != nil {
-		return err
+	if strings.ToLower(Options.Driver) == "mysql" {
+		err = db.Query(&columns, `select tbl_name from sqlite_master where type='table' and  tbl_name not in('sqlite_sequence');
+		`, Options.Schema)
+		if err != nil {
+			return err
+		}
+	} else if strings.ToLower(Options.Driver) == "sqlite3" {
+		var tables = []string{}
+		err = db.Query(&tables, `select tbl_name from sqlite_master where type='table' and  tbl_name not in('sqlite_sequence');`)
+		if err != nil {
+			return err
+		}
+		for _, table := range tables {
+			sqlite3Columns := []SQLite3Column{}
+			err := db.Query(&sqlite3Columns, "PRAGMA table_info("+table+")")
+			if err != nil {
+				return err
+			}
+			for _, column := range sqlite3Columns {
+				isPK := ""
+				if column.ColumnKey == 1 {
+					isPK = "PRI"
+				}
+				nullable := "NO"
+				if column.NotNull == 1 {
+					nullable = "YES"
+				}
+				columns = append(columns, &Column{
+					TableName:  table,
+					ColumnName: column.ColumnName,
+					DataType:   column.DataType,
+					Nullable:   nullable,
+					ColumnKey:  isPK,
+				})
+			}
+		}
+	} else {
+		return errors.New("unsupport database")
 	}
 
 	tables := map[string]*Table{}

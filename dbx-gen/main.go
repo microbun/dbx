@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	_ "github.com/go-sql-driver/mysql" //justifying
+	_ "github.com/mattn/go-sqlite3"    //justifying
 	"github.com/microbun/dbx/dbx-gen/internal"
 )
 
