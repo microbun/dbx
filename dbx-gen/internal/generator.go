@@ -190,15 +190,16 @@ func generate() error {
 					nullable = "NO"
 				}
 				isPK := ""
-				if column.ColumnKey == 1 {
-					isPK = "PRI"
-					nullable = "NO"
-				}
 				extra := ""
 				for _, name := range autoIncrementTables {
 					if table == name {
 						extra = "auto_increment"
 					}
+				}
+				if column.ColumnKey == 1 {
+					isPK = "PRI"
+					nullable = "NO"
+					extra = "auto_increment"
 				}
 				columns = append(columns, &Column{
 					TableName:  table,
