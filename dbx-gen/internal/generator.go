@@ -163,8 +163,9 @@ func generate() error {
 	db.Options().Logger = nil
 	var columns []*Column
 	if strings.ToLower(Options.Driver) == "mysql" {
-		err = db.Query(&columns, `select tbl_name from sqlite_master where type='table' and  tbl_name not in('sqlite_sequence');
-		`, Options.Schema)
+		err = db.Query(&columns, `select table_name,column_name,column_comment,data_type,is_nullable,column_key,extra,column_type
+		from information_schema.columns
+		where TABLE_SCHEMA=?`, Options.Schema)
 		if err != nil {
 			return err
 		}
@@ -183,13 +184,15 @@ func generate() error {
 				return err
 			}
 			for _, column := range sqlite3Columns {
+
+				nullable := "YES"
+				if column.NotNull == 1 {
+					nullable = "NO"
+				}
 				isPK := ""
 				if column.ColumnKey == 1 {
 					isPK = "PRI"
-				}
-				nullable := "NO"
-				if column.NotNull == 1 {
-					nullable = "YES"
+					nullable = "NO"
 				}
 				extra := ""
 				for _, name := range autoIncrementTables {
