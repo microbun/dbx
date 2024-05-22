@@ -170,6 +170,8 @@ func generate() error {
 		}
 	} else if strings.ToLower(Options.Driver) == "sqlite3" {
 		var tables = []string{}
+		var autoIncrementTables = []string{}
+		db.Query(&autoIncrementTables, "select name from sqlite_sequence")
 		err = db.Query(&tables, `select tbl_name from sqlite_master where type='table' and  tbl_name not in('sqlite_sequence');`)
 		if err != nil {
 			return err
@@ -189,12 +191,19 @@ func generate() error {
 				if column.NotNull == 1 {
 					nullable = "YES"
 				}
+				extra := ""
+				for _, name := range autoIncrementTables {
+					if table == name {
+						extra = "auto_increment"
+					}
+				}
 				columns = append(columns, &Column{
 					TableName:  table,
 					ColumnName: column.ColumnName,
 					DataType:   column.DataType,
 					Nullable:   nullable,
 					ColumnKey:  isPK,
+					Extra:      extra,
 				})
 			}
 		}
