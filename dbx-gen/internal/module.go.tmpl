@@ -11,28 +11,32 @@ import (
 
 {{range $name, $table :=  .Tables}}
 
-var {{ .StructName }}Table = {{ .StructName }}TableSchema {}
+var {{ .StructName }}Table = table{{ .StructName }}SQL {}
 
-type {{ .StructName }}TableSchema struct {
+type table{{ .StructName }}SQL struct {
 
 }
 
-func (_ {{ .StructName }}TableSchema) Columns(alias string) []string{
+func (_ table{{ .StructName }}SQL) Columns(alias string) []string{
     if alias!=""{
         alias = "`"+alias+"`"+"."
     }
 	return []string{ {{range .Columns}} alias+"`{{ .ColumnName }}`", {{end}} }
 }
 
-func (s {{ .StructName }}TableSchema) SelectSQL(alias string) string{
+func (s table{{ .StructName }}SQL) SelectSQL(alias string) string{
     if alias!=""{
         return fmt.Sprintf(" select %v from {{.TableName}} as "+alias, strings.Join(s.Columns(alias), ","))
     }
 	return fmt.Sprintf(" select %v from {{.TableName}} ", strings.Join(s.Columns(alias),","))
 }
 
-func (_ {{ .StructName }}TableSchema) CountSQL() string{
+func (_ table{{ .StructName }}SQL) CountSQL() string{
 	return " select count(1) from {{.TableName}} "
+}
+
+func (_ table{{ .StructName }}SQL) DeleteSQL(where string) string{
+	return " delete from {{.TableName}} "+ where
 }
 
 type {{ .RecordName  }} struct {

@@ -15,7 +15,7 @@ type SQLGenerator interface {
 	InsertSQL(value interface{}) (autoIncrement *reflect.Value, query string, args []interface{}, err error)
 }
 
-//var tableInterfaceType = reflect.TypeOf(Table).Elem()
+// var tableInterfaceType = reflect.TypeOf(Table).Elem()
 func reflectTable(value interface{}) (tableName string, props reflectx.Properties, err error) {
 	v := reflect.ValueOf(value)
 	if v.Kind() != reflect.Ptr {
@@ -94,6 +94,8 @@ func (CommonSQLGenerator) UpdateSQL(value interface{}, columns ...string) (query
 					now := time.Now()
 					prop.Value.Set(reflect.ValueOf(now))
 					values = append(values, now)
+				} else if prop.Tag.Update == "ignore" {
+					continue
 				} else {
 					columnsStr += ", " + prop.Tag.Column + "=" + prop.Tag.Update
 				}

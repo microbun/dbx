@@ -114,7 +114,7 @@ func (c Column) Tag() string {
 		dbxTag += ";auto_increment"
 	}
 	if c.ColumnName == "created_at" {
-		dbxTag += ";insert:time.Now()"
+		dbxTag += ";insert:time.Now();update:ignore"
 	}
 	if c.ColumnName == "updated_at" {
 		dbxTag += ";insert:time.Now();update:time.Now()"
@@ -190,12 +190,13 @@ func generate() error {
 					nullable = "NO"
 				}
 				isPK := ""
+				// isAutoIncrementPK := false
+				// for _, name := range autoIncrementTables {
+				// 	if table == name {
+				// 		isAutoIncrementPK = true
+				// 	}
+				// }
 				extra := ""
-				for _, name := range autoIncrementTables {
-					if table == name {
-						extra = "auto_increment"
-					}
-				}
 				if column.ColumnKey == 1 {
 					isPK = "PRI"
 					nullable = "NO"
